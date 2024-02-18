@@ -2,6 +2,8 @@ import logging
 import os
 import yaml
 from flask import current_app, session, request, Flask
+from flask_translator.definition import LANGUAGE_CODES
+from flask_translator.providers.config import proxy_provider
 
 
 class Translator(object):
@@ -16,6 +18,8 @@ class Translator(object):
         self._set_default_config(app)
 
         app.before_request(self._get_locale)
+        app.add_template_global(self.translate, app.config['JINJA_FUNC_NAME'])
+        app.add_template_global(self.auto_translate, app.config['JINJA_AUTO_TRANSLATE_FUNC_NAME'])
 
     def translate(self, key: str, **kwargs):
         try:
@@ -33,8 +37,10 @@ class Translator(object):
             logging.error(e)
             return current_app.config['DEFAULT_MESSAGE']
 
-    # Initialize from ISO 639-1 code standards
+    def auto_translate(self, text: str):
+        return proxy_provider(current_app.config['TRANSLATE_PROVIDER']).translate(text, self._language)
 
+    # Initialize from ISO 639-1 code standards
     def _get_locale(self):
         lang_initializer = current_app.config['LANG_INITIALIZER']
 
@@ -45,7 +51,12 @@ class Translator(object):
         elif lang_initializer == 'sessions':
             self._language = session.get('language')
 
-        self._language = self._language or current_app.config['DEFAULT_LANG']
+        lang_code = next(
+            (lang_code['code'] for lang_code in LANGUAGE_CODES if lang_code['code'] == self._language),
+            None
+        )
+
+        self._language = lang_code or current_app.config['DEFAULT_LANG']
 
     def _get_file_data(self):
         translation_file = os.path.join(current_app.root_path, current_app.config['TRANSLATIONS_PATH'],
@@ -62,3 +73,6 @@ class Translator(object):
         app.config.setdefault('LANG_INITIALIZER', 'headers')
         app.config.setdefault('TRANSLATIONS_PATH', 'translations')
         app.config.setdefault('DEFAULT_MESSAGE', 'Process finished!')
+        app.config.setdefault('JINJA_FUNC_NAME', 'translate')
+        app.config.setdefault('TRANSLATE_PROVIDER', 'google')
+        app.config.setdefault('JINJA_AUTO_TRANSLATE_FUNC_NAME', 'auto_translate')
