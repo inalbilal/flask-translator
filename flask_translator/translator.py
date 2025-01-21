@@ -30,8 +30,8 @@ class Translator(object):
             return value
 
         except Exception as e:
-            logging.error(e)
-            return current_app.config['DEFAULT_MESSAGE']
+            logging.error("[Flask-Translator] %s", str(e))
+            return current_app.config.get('DEFAULT_MESSAGE', key)
 
     # Initialize from ISO 639-1 code standards
 
@@ -61,4 +61,3 @@ class Translator(object):
         app.config.setdefault('DEFAULT_LANG', 'en')
         app.config.setdefault('LANG_INITIALIZER', 'headers')
         app.config.setdefault('TRANSLATIONS_PATH', 'translations')
-        app.config.setdefault('DEFAULT_MESSAGE', 'Process finished!')
